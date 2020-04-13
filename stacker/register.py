@@ -3,7 +3,6 @@ from math import ceil, floor
 from os import path
 from sys import argv
 
-import astroalign as aa
 import numpy as np
 from scipy import optimize
 from skimage.color import rgb2gray
@@ -136,25 +135,14 @@ def find_stars(img):
     ]
 
 
-def register_file(file_path):
+if __name__ == "__main__":
 
+    file_path = argv[1]
     image = value_objects.ImageFile.load(file_path)
+
+    if image.meta.stars is not None:
+        raise Exception("File already registered")
+
     stars = find_stars(image.image)
     image.meta.stars = stars
     image.save()
-
-    print(stars)
-
-
-if __name__ == "__main__":
-
-    register_file(argv[1])
-
-# target_stars = find_stars(target_image)
-
-# print(source_stars)
-# print(target_stars)
-
-# transf, (s_list, t_list) = aa.find_transform(source_stars, target_stars)
-
-# print(transf)

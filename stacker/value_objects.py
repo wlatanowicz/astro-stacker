@@ -1,6 +1,6 @@
 import hashlib
 import uuid
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid5
 
 import imageio
@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from matplotlib import image
 from numpy.core.numeric import ndarray
+from skimage.transform import SimilarityTransform
 
 META_VERSION = "1.0"
 
@@ -45,9 +46,17 @@ class Star:
 @dataclass
 class FileMetaData:
     md5: str
-    uuid: uuid.UUID
+    uuid: str
     stars: Optional[List[Star]] = None
+    transformations: Optional[Dict[str, Any]] = None
     version: str = META_VERSION
+
+    @property
+    def stars_as_tuples(self):
+        return [
+            (s.position.x, s.position.y)
+            for s in self.stars
+        ]
 
 
 class ImageFile:
@@ -84,7 +93,9 @@ class ImageFile:
 
             if md5 != meta.md5:
                 raise ValueError("Meta data checksum doesn't match")
-        except OSError:
+
+            return meta
+        except OSError as e:
             return None
 
     @staticmethod
@@ -93,8 +104,9 @@ class ImageFile:
 
     def _save_meta(self):
         meta_file_name = self._meta_file_name(self.file_name)
+        meta_json = self.meta.to_json(indent=4)
         with open(meta_file_name, "w") as f:
-            f.write(self.meta.to_json(indent=4))
+            f.write(meta_json)
 
     @classmethod
     def _create_meta(cls, file_name):
