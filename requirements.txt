@@ -1,2 +1,2 @@
 astroalign==2.0.2
-dataclasses-json==0.4.2
+dacite==1.5.1

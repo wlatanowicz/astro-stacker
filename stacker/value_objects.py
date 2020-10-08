@@ -1,11 +1,12 @@
+import json
 import hashlib
 import uuid
+from dacite import from_dict
 from typing import Any, Dict, List, Optional
 from uuid import uuid5
 
 import imageio
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json
+from dataclasses import dataclass, asdict
 from matplotlib import image
 from numpy.core.numeric import ndarray
 from skimage.transform import SimilarityTransform
@@ -13,16 +14,25 @@ from skimage.transform import SimilarityTransform
 META_VERSION = "1.0"
 
 
-@dataclass_json
+class BaseDataClass:
+    def to_json(self, *args, **kwargs):
+        d = asdict(self)
+        return json.dumps(d, *args, **kwargs)
+
+    @classmethod
+    def from_json(cls, j):
+        d = json.loads(j)
+        return from_dict(data_class=cls, data=d)
+
+
 @dataclass
-class Point:
+class Point(BaseDataClass):
     x: float
     y: float
 
 
-@dataclass_json
 @dataclass
-class Star:
+class Star(BaseDataClass):
     position: Point
     radius: float
     fwhm: Optional[float] = None
@@ -42,9 +52,8 @@ class Star:
             return f"Star(x={self.x} y={self.y} fwhm={self.fwhm})"
 
 
-@dataclass_json
 @dataclass
-class FileMetaData:
+class FileMetaData(BaseDataClass):
     md5: str
     uuid: str
     stars: Optional[List[Star]] = None
@@ -60,6 +69,10 @@ class FileMetaData:
 
 
 class ImageFile:
+    FILE_TYPE_MAPPING = {
+        "arw": "RAW-FI",
+    }
+
     def __init__(self, file_name: str, image: ndarray, meta: FileMetaData):
         self.file_name = file_name
         self.image = image
@@ -67,7 +80,7 @@ class ImageFile:
 
     @classmethod
     def load(cls, file_name):
-        image = imageio.imread(file_name)
+        image = cls._load_image(file_name)
         meta = cls._load_meta(file_name) or cls._create_meta(file_name)
         return cls(file_name=file_name, image=image, meta=meta,)
 
@@ -81,6 +94,18 @@ class ImageFile:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
+
+    @classmethod
+    def _load_image(cls, file_name: str):
+        format = None
+        extension = None
+        try:
+            extension = file_name.split(".")[-1].lower()
+            format = cls.FILE_TYPE_MAPPING[extension]
+        except:
+            pass
+
+        return imageio.imread(file_name, format=format)
 
     @classmethod
     def _load_meta(cls, file_name: str):

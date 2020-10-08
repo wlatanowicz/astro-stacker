@@ -9,7 +9,7 @@ from skimage.color import rgb2gray
 from skimage.feature import blob_log
 from skimage.transform import rescale
 
-import value_objects
+from . import value_objects
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def two_dimensional_gaussian_fit(data):
 
 
 def _find_stars_ballpark(
-    gray_image, scale=0.2, min_sigma=3, max_sigma=10, num_sigma=10
+    gray_image, scale=0.5, min_sigma=0.1, max_sigma=10, num_sigma=10
 ):
     if scale != 1:
         gray_image = rescale(gray_image, scale)
@@ -83,7 +83,7 @@ def _find_star_refine(
     gray_image,
     star: value_objects.Star,
     scale=5,
-    min_sigma=3,
+    min_sigma=0.1,
     max_sigma=10,
     num_sigma=10,
 ):
@@ -137,12 +137,15 @@ def find_stars(img):
 
 if __name__ == "__main__":
 
-    file_path = argv[1]
-    image = value_objects.ImageFile.load(file_path)
+    file_paths = argv[1:]
 
-    if image.meta.stars is not None:
-        raise Exception("File already registered")
+    for file_path in file_paths:
+        image = value_objects.ImageFile.load(file_path)
 
-    stars = find_stars(image.image)
-    image.meta.stars = stars
-    image.save()
+        if image.meta.stars is not None:
+            logger.warning("File %s already registred", file_path)
+        else:
+            logger.info("Registering %s", file_path)
+            stars = find_stars(image.image)
+            image.meta.stars = stars
+            image.save()
